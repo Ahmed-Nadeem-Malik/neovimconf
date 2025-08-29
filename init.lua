@@ -102,7 +102,7 @@ vim.g.have_nerd_font = false
 vim.o.number = true
 -- You can also add relative line numbers, to help with jumping.
 --  Experiment for yourself to see if you like it!
--- vim.o.relativenumber = true
+vim.o.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.o.mouse = 'a'
@@ -151,6 +151,14 @@ vim.o.splitbelow = true
 --   and `:help lua-options-guide`
 vim.o.list = true
 vim.opt.listchars = { tab = '» ', trail = '·', nbsp = '␣' }
+
+-- Use spaces instead of actual tab characters
+vim.o.expandtab = true
+
+-- Number of spaces per indentation level
+vim.o.shiftwidth = 4
+vim.o.tabstop = 4
+vim.o.softtabstop = 4
 
 -- Preview substitutions live, as you type!
 vim.o.inccommand = 'split'
@@ -349,6 +357,9 @@ require('lazy').setup({
         { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
       },
     },
+    config = function()
+      vim.api.nvim_set_hl(0, 'WhichKeyNormal', { link = 'Normal' })
+    end,
   },
 
   -- NOTE: Plugins can specify dependencies.
@@ -671,9 +682,9 @@ require('lazy').setup({
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
       local servers = {
-        -- clangd = {},
+        clangd = {},
         -- gopls = {},
-        -- pyright = {},
+        pyright = {},
         -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
@@ -681,8 +692,9 @@ require('lazy').setup({
         --    https://github.com/pmizio/typescript-tools.nvim
         --
         -- But for many setups, the LSP (`ts_ls`) will work just fine
-        -- ts_ls = {},
-        --
+        ts_ls = {},
+        html = {},
+        cssls = {},
 
         lua_ls = {
           -- cmd = { ... },
@@ -756,7 +768,7 @@ require('lazy').setup({
         -- Disable "format_on_save lsp_fallback" for languages that don't
         -- have a well standardized coding style. You can add additional
         -- languages here or re-enable it for the disabled ones.
-        local disable_filetypes = { c = true, cpp = true }
+        local disable_filetypes = {}
         if disable_filetypes[vim.bo[bufnr].filetype] then
           return nil
         else
@@ -769,12 +781,43 @@ require('lazy').setup({
       formatters_by_ft = {
         lua = { 'stylua' },
         -- Conform can also run multiple formatters sequentially
-        -- python = { "isort", "black" },
-        --
+        python = { 'black' },
+        html = { 'prettier' },
+        css = { 'prettier' },
         -- You can use 'stop_after_first' to run the first available formatter from the list
-        -- javascript = { "prettierd", "prettier", stop_after_first = true },
+        javascript = { 'prettierd' },
+        c = { 'clang-format' },
+        cpp = { 'clang-format' },
       },
     },
+  },
+
+  { -- Linting
+    'mfussenegger/nvim-lint',
+    event = { 'BufWritePost', 'BufReadPost', 'InsertLeave' },
+    config = function()
+      local lint = require 'lint'
+
+      lint.linters_by_ft = {
+        python = { 'flake8' }, -- or 'pylint'
+        c = { 'clangtidy' },
+        cpp = { 'clangtidy' },
+        javascript = { 'eslint_d' }, -- faster than eslint
+        javascriptreact = { 'eslint_d' },
+        typescript = { 'eslint_d' },
+        typescriptreact = { 'eslint_d' },
+        html = { 'htmlhint' },
+        css = { 'stylelint' },
+        scss = { 'stylelint' },
+      }
+
+      -- Auto-run lint on save
+      vim.api.nvim_create_autocmd({ 'BufWritePost', 'BufReadPost', 'InsertLeave' }, {
+        callback = function()
+          require('lint').try_lint()
+        end,
+      })
+    end,
   },
 
   { -- Autocompletion
@@ -875,7 +918,7 @@ require('lazy').setup({
       signature = { enabled = true },
     },
   },
-
+  --[[
   { -- You can easily change to a different colorscheme.
     -- Change the name of the colorscheme plugin below, and then
     -- change the command in the config to whatever the name of that colorscheme is.
@@ -894,11 +937,105 @@ require('lazy').setup({
       -- Load the colorscheme here.
       -- Like many other themes, this one has different styles, and you could load
       -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      vim.cmd.colorscheme 'tokyonight-night'
+      vim.cmd.colorscheme 'vim'
+      vim.api.nvim_set_hl(0, 'SignColumn', { bg = 'NONE' })
+    end,
+  },
+]]
+
+  --[[
+  {
+    'projekt0n/github-nvim-theme',
+    name = 'github-theme',
+    lazy = false, -- make sure we load this during startup if it is your main colorscheme
+    priority = 1000, -- make sure to load this before all the other start plugins
+    config = function()
+      require('github-theme').setup {
+        options = {
+          transparent = true,
+        },
+      }
+
+      vim.cmd 'colorscheme github_dark'
+    end,
+  },
+]]
+  --[[
+  {
+    'rebelot/kanagawa.nvim',
+    lazy = false,
+    priority = 1000,
+    config = function()
+      require('kanagawa').setup {
+        compile = true,
+        undercurl = true,
+        commentStyle = { italic = true },
+        keywordStyle = { italic = false },
+        statementStyle = { bold = true },
+        functionStyle = {},
+        typeStyle = {},
+        variablebuiltinStyle = { italic = true },
+        specialReturn = true,
+        specialException = true,
+        transparent = true, -- no background
+        dimInactive = false,
+        globalStatus = true,
+        colors = {},
+        overrides = function(colors)
+          return {}
+        end,
+      }
+      -- load the colorscheme
+      vim.cmd 'colorscheme kanagawa-dragon'
+    end,
+  },
+]]
+
+  --[[
+ {
+    'rose-pine/neovim',
+    name = 'rose-pine',
+    lazy = false,
+    priority = 1000,
+    config = function()
+      require('rose-pine').setup({
+        ---@diagnostic disable-next-line: missing-fields
+        dark_variant = 'main',       -- or 'moon'
+        disable_background = true,   -- disables background
+        groups = {
+          background = 'NONE',       -- ensures transparency
+          NormalFloat = 'NONE',      -- floating windows transparent
+          FloatBorder = 'NONE',
+        },
+      })
+
+      -- Load the colorscheme
+      vim.cmd 'colorscheme rose-pine'
+
+      -- Optional: make SignColumn transparent
+      vim.api.nvim_set_hl(0, 'SignColumn', { bg = 'NONE' })
+    end,
+  },
+]]
+
+  {
+    'scottmckendry/cyberdream.nvim',
+    lazy = false,
+    priority = 1000,
+    config = function()
+      require('cyberdream').setup {
+        variant = 'default', -- 'dark' or 'light'
+        transparent = true, -- makes the background transparent
+        bold = true, -- optional: enable bold text
+        italic = false, -- optional: disable italics
+        underline = true, -- optional: enable underline
+      }
+
+      -- Apply the colorscheme
+      vim.cmd 'colorscheme cyberdream'
     end,
   },
 
-  -- Highlight todo, notes, etc in comments
   { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
 
   { -- Collection of various small independent plugins/modules
