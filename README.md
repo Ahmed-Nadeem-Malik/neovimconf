@@ -1,5 +1,5 @@
 # kickstart.nvim
-
+#THIS IS A CLONED VERSION FROM KICKSTART.NVIM
 ## Introduction
 
 A starting point for Neovim that is:
