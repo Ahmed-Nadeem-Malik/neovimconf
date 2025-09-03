@@ -1,89 +1,3 @@
---[[
-
-=====================================================================
-==================== READ THIS BEFORE CONTINUING ====================
-=====================================================================
-========                                    .-----.          ========
-========         .----------------------.   | === |          ========
-========         |.-""""""""""""""""""-.|   |-----|          ========
-========         ||                    ||   | === |          ========
-========         ||   KICKSTART.NVIM   ||   |-----|          ========
-========         ||                    ||   | === |          ========
-========         ||                    ||   |-----|          ========
-========         ||:Tutor              ||   |:::::|          ========
-========         |'-..................-'|   |____o|          ========
-========         `"")----------------(""`   ___________      ========
-========        /::::::::::|  |::::::::::\  \ no mouse \     ========
-========       /:::========|  |==hjkl==:::\  \ required \    ========
-========      '""""""""""""'  '""""""""""""'  '""""""""""'   ========
-========                                                     ========
-=====================================================================
-=====================================================================
-
-What is Kickstart?
-
-  Kickstart.nvim is *not* a distribution.
-
-  Kickstart.nvim is a starting point for your own configuration.
-    The goal is that you can read every line of code, top-to-bottom, understand
-    what your configuration is doing, and modify it to suit your needs.
-
-    Once you've done that, you can start exploring, configuring and tinkering to
-    make Neovim your own! That might mean leaving Kickstart just the way it is for a while
-    or immediately breaking it into modular pieces. It's up to you!
-
-    If you don't know anything about Lua, I recommend taking some time to read through
-    a guide. One possible example which will only take 10-15 minutes:
-      - https://learnxinyminutes.com/docs/lua/
-
-    After understanding a bit more about Lua, you can use `:help lua-guide` as a
-    reference for how Neovim integrates Lua.
-    - :help lua-guide
-    - (or HTML version): https://neovim.io/doc/user/lua-guide.html
-
-Kickstart Guide:
-
-  TODO: The very first thing you should do is to run the command `:Tutor` in Neovim.
-
-    If you don't know what this means, type the following:
-      - <escape key>
-      - :
-      - Tutor
-      - <enter key>
-
-    (If you already know the Neovim basics, you can skip this step.)
-
-  Once you've completed that, you can continue working through **AND READING** the rest
-  of the kickstart init.lua.
-
-  Next, run AND READ `:help`.
-    This will open up a help window with some basic information
-    about reading, navigating and searching the builtin help documentation.
-
-    This should be the first place you go to look when you're stuck or confused
-    with something. It's one of my favorite Neovim features.
-
-    MOST IMPORTANTLY, we provide a keymap "<space>sh" to [s]earch the [h]elp documentation,
-    which is very useful when you're not exactly sure of what you're looking for.
-
-  I have left several `:help X` comments throughout the init.lua
-    These are hints about where to find more information about the relevant settings,
-    plugins or Neovim features used in Kickstart.
-
-   NOTE: Look for lines like this
-
-    Throughout the file. These are for you, the reader, to help you understand what is happening.
-    Feel free to delete them once you know what you're doing, but they should serve as a guide
-    for when you are first encountering a few different constructs in your Neovim config.
-
-If you experience any errors while trying to install kickstart, run `:checkhealth` for more info.
-
-I hope you enjoy your Neovim journey,
-- TJ
-
-P.S. You can delete this when you're done too. It's your config now! :)
---]]
-
 -- Set <space> as the leader key
 -- See `:help mapleader`
 --  NOTE: Must happen before plugins are loaded (otherwise wrong leader will be used)
@@ -91,7 +5,7 @@ vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed and selected in the terminal
-vim.g.have_nerd_font = false
+vim.g.have_nerd_font = true
 
 -- [[ Setting options ]]
 -- See `:help vim.o`
@@ -118,8 +32,14 @@ vim.schedule(function()
   vim.o.clipboard = 'unnamedplus'
 end)
 
+-- 1. Python provider
+vim.g.python3_host_prog = vim.fn.expand '~/.config/nvim/venv/bin/python'
+
 -- Enable break indent
 vim.o.breakindent = true
+
+-- Disable ligatures
+vim.o.guifont = 'FiraCode Nerd Font Mono:h15:liga=0'
 
 -- Save undo history
 vim.o.undofile = true
@@ -682,8 +602,7 @@ require('lazy').setup({
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
       local servers = {
-        clangd = {},
-        -- gopls = {},
+        clangd = { cmd = { 'clangd', '--compile-commands-dir=build' } }, -- gopls = {},
         pyright = {},
         -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
@@ -799,7 +718,7 @@ require('lazy').setup({
       local lint = require 'lint'
 
       lint.linters_by_ft = {
-        python = { 'flake8' }, -- or 'pylint'
+        python = { 'flake8' },
         c = { 'clangtidy' },
         cpp = { 'clangtidy' },
         javascript = { 'eslint_d' }, -- faster than eslint
@@ -811,6 +730,7 @@ require('lazy').setup({
         scss = { 'stylelint' },
       }
 
+      lint.linters.flake8.args = { '--max-line-length=120' }
       -- Auto-run lint on save
       vim.api.nvim_create_autocmd({ 'BufWritePost', 'BufReadPost', 'InsertLeave' }, {
         callback = function()
@@ -918,6 +838,40 @@ require('lazy').setup({
       signature = { enabled = true },
     },
   },
+  {
+    'nvim-neo-tree/neo-tree.nvim',
+    branch = 'v3.x',
+    dependencies = {
+      'nvim-lua/plenary.nvim',
+      'nvim-tree/nvim-web-devicons', -- optional, for file icons
+      'MunifTanjim/nui.nvim',
+    },
+    cmd = 'Neotree', -- lazy-load when the :Neotree command is run
+    keys = {
+      { '<leader>e', ':Neotree toggle<CR>', desc = 'Toggle File Explorer' },
+      { '<leader>E', ':Neotree reveal<CR>', desc = 'Reveal Current File' },
+    },
+    opts = {
+      filesystem = {
+        filtered_items = {
+          hide_dotfiles = false,
+          hide_gitignored = true,
+        },
+      },
+      window = {
+        width = 30,
+        mappings = {
+          ['<space>'] = 'toggle_node',
+          ['<cr>'] = 'open',
+          ['o'] = 'open',
+          ['S'] = 'split_with_window_picker',
+          ['s'] = 'vsplit_with_window_picker',
+          ['h'] = 'close_node',
+          ['l'] = 'open',
+        },
+      },
+    },
+  },
   --[[
   { -- You can easily change to a different colorscheme.
     -- Change the name of the colorscheme plugin below, and then
@@ -942,7 +896,6 @@ require('lazy').setup({
     end,
   },
 ]]
-
   --[[
   {
     'projekt0n/github-nvim-theme',
@@ -959,7 +912,7 @@ require('lazy').setup({
       vim.cmd 'colorscheme github_dark'
     end,
   },
-]]
+    ]]
   --[[
   {
     'rebelot/kanagawa.nvim',
@@ -989,25 +942,24 @@ require('lazy').setup({
       vim.cmd 'colorscheme kanagawa-dragon'
     end,
   },
-]]
-
+    ]]
   --[[
- {
+  {
     'rose-pine/neovim',
     name = 'rose-pine',
     lazy = false,
     priority = 1000,
     config = function()
-      require('rose-pine').setup({
+      require('rose-pine').setup {
         ---@diagnostic disable-next-line: missing-fields
-        dark_variant = 'main',       -- or 'moon'
-        disable_background = true,   -- disables background
+        dark_variant = 'main', -- or 'moon'
+        disable_background = true, -- disables background
         groups = {
-          background = 'NONE',       -- ensures transparency
-          NormalFloat = 'NONE',      -- floating windows transparent
+          background = 'NONE', -- ensures transparency
+          NormalFloat = 'NONE', -- floating windows transparent
           FloatBorder = 'NONE',
         },
-      })
+      }
 
       -- Load the colorscheme
       vim.cmd 'colorscheme rose-pine'
@@ -1016,8 +968,7 @@ require('lazy').setup({
       vim.api.nvim_set_hl(0, 'SignColumn', { bg = 'NONE' })
     end,
   },
-]]
-
+  ]]
   {
     'scottmckendry/cyberdream.nvim',
     lazy = false,
@@ -1029,13 +980,13 @@ require('lazy').setup({
         bold = true, -- optional: enable bold text
         italic = false, -- optional: disable italics
         underline = true, -- optional: enable underline
+        borderless_pickers = false,
       }
 
       -- Apply the colorscheme
       vim.cmd 'colorscheme cyberdream'
     end,
   },
-
   { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
 
   { -- Collection of various small independent plugins/modules
@@ -1147,6 +1098,16 @@ require('lazy').setup({
       lazy = '💤 ',
     },
   },
+})
+
+-- Set .h files to cpp filetype for better LSP support
+vim.api.nvim_create_autocmd({ 'BufRead', 'BufNewFile' }, {
+  pattern = '*.h',
+  callback = function()
+    if vim.fn.search('#include.*<.*>', 'nw') > 0 then
+      vim.bo.filetype = 'cpp'
+    end
+  end,
 })
 
 -- The line beneath this is called `modeline`. See `:help modeline`
