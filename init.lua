@@ -684,27 +684,34 @@ require('lazy').setup({
     opts = {
       notify_on_error = false,
       format_on_save = function(bufnr)
-        -- Disable "format_on_save lsp_fallback" for languages that don't
-        -- have a well standardized coding style. You can add additional
-        -- languages here or re-enable it for the disabled ones.
         local disable_filetypes = {}
         if disable_filetypes[vim.bo[bufnr].filetype] then
           return nil
-        else
-          return {
-            timeout_ms = 500,
-            lsp_format = 'fallback',
-          }
         end
+        return { timeout_ms = 500, lsp_format = 'fallback' }
       end,
+      -- add this block ↓
+      formatters = {
+        prettier = {
+          prepend_args = {
+            '--config',
+            vim.fn.expand '~/.config/prettier/.prettierrc.json',
+          },
+        },
+        prettierd = {
+          env = {
+            PRETTIERD_DEFAULT_CONFIG = vim.fn.expand '~/.config/prettier/.prettierrc.json',
+          },
+        },
+      },
       formatters_by_ft = {
         lua = { 'stylua' },
-        -- Conform can also run multiple formatters sequentially
         python = { 'black' },
-        html = { 'prettier' },
-        css = { 'prettier' },
-        -- You can use 'stop_after_first' to run the first available formatter from the list
+        html = { 'prettier' }, -- or 'prettierd'
+        css = { 'prettier' }, -- or 'prettierd'
         javascript = { 'prettierd' },
+        typescript = { 'prettierd' },
+        typescriptreact = { 'prettierd' },
         c = { 'clang-format' },
         cpp = { 'clang-format' },
       },
@@ -716,6 +723,18 @@ require('lazy').setup({
     event = { 'BufWritePost', 'BufReadPost', 'InsertLeave' },
     config = function()
       local lint = require 'lint'
+      -- Take the built-in stylelint and just add your global config
+      lint.linters.stylelint.stdin = true
+      lint.linters.stylelint.args = {
+        '--formatter',
+        'unix',
+        '--config',
+        vim.fn.expand '~/.config/stylelint/.stylelintrc.json',
+        '--config-basedir',
+        vim.fn.expand '~/.config/stylelint',
+        '--stdin-filename',
+        '%filepath',
+      }
 
       lint.linters_by_ft = {
         python = { 'flake8' },
@@ -723,8 +742,6 @@ require('lazy').setup({
         cpp = { 'clangtidy' },
         javascript = { 'eslint_d' }, -- faster than eslint
         javascriptreact = { 'eslint_d' },
-        typescript = { 'eslint_d' },
-        typescriptreact = { 'eslint_d' },
         html = { 'htmlhint' },
         css = { 'stylelint' },
         scss = { 'stylelint' },
@@ -1032,8 +1049,23 @@ require('lazy').setup({
     main = 'nvim-treesitter.configs', -- Sets main module to use for opts
     -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
     opts = {
-      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
-      -- Autoinstall languages that are not installed
+      ensure_installed = {
+        'bash',
+        'c',
+        'cpp',
+        'python',
+        'javascript',
+        'typescript',
+        'css',
+        'html',
+        'lua',
+        'luadoc',
+        'markdown',
+        'markdown_inline',
+        'query',
+        'vim',
+        'vimdoc',
+      }, -- Autoinstall languages that are not installed
       auto_install = true,
       highlight = {
         enable = true,
