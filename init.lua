@@ -32,17 +32,30 @@ vim.schedule(function()
   vim.o.clipboard = 'unnamedplus'
 end)
 
+-- put this before any plugin setup
+local sep = package.config:sub(1, 1)
+vim.env.PATH = vim.fn.stdpath 'data' .. sep .. 'mason' .. sep .. 'bin' .. sep .. vim.env.PATH
 -- 1. Python provider
-vim.g.python3_host_prog = vim.fn.expand '~/.config/nvim/venv/bin/python'
+do
+  local py = vim.fn.expand '~/.config/nvim/venv/bin/python'
+  if vim.fn.executable(py) == 1 then
+    vim.g.python3_host_prog = py
+  end
+end
+
+-- Disable ligatures
+if vim.g.neovide or vim.g.goneovim then
+  vim.o.guifont = 'FiraCode Nerd Font Mono:h15:liga=0'
+end
 
 -- Enable break indent
 vim.o.breakindent = true
 
--- Disable ligatures
-vim.o.guifont = 'FiraCode Nerd Font Mono:h15:liga=0'
-
 -- Save undo history
+--
 vim.o.undofile = true
+vim.o.undodir = vim.fn.stdpath 'state' .. '/undo'
+vim.fn.mkdir(vim.o.undodir, 'p')
 
 -- Case-insensitive searching UNLESS \C or one or more capital letters in the search term
 vim.o.ignorecase = true
@@ -97,7 +110,7 @@ vim.o.confirm = true
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
 
---  This is for the netwr tree
+--  This is for the netrw tree
 vim.keymap.set('n', '<leader>n', '<cmd>Ex<CR>', { desc = 'Explorer (:Ex)' })
 
 -- Clear highlights on search when pressing <Esc> in normal mode
@@ -212,6 +225,21 @@ require('lazy').setup({
         topdelete = { text = '‾' },
         changedelete = { text = '~' },
       },
+    },
+  },
+  {
+    'MeanderingProgrammer/render-markdown.nvim',
+    ft = { 'markdown' }, -- lazy-load on md files
+    dependencies = {
+      'nvim-treesitter/nvim-treesitter',
+      -- pick ONE icon provider you already use:
+      'nvim-tree/nvim-web-devicons', -- you already have this elsewhere
+      -- or: 'echasnovski/mini.icons',
+    },
+    ---@type render.md.UserConfig
+    opts = {
+      completions = { lsp = { enabled = true } }, -- works with blink.cmp
+      -- only_render_image_at_cursor = true, -- optional
     },
   },
 
@@ -422,9 +450,6 @@ require('lazy').setup({
 
       -- Useful status updates for LSP.
       { 'j-hui/fidget.nvim', opts = {} },
-
-      -- Allows extra capabilities provided by blink.cmp
-      'saghen/blink.cmp',
     },
     config = function()
       -- Brief aside: **What is LSP?**
@@ -593,7 +618,6 @@ require('lazy').setup({
       --  By default, Neovim doesn't support everything that is in the LSP specification.
       --  When you add blink.cmp, luasnip, etc. Neovim now has *more* capabilities.
       --  So, we create new capabilities with blink.cmp, and then broadcast that to the servers.
-      local capabilities = require('blink.cmp').get_lsp_capabilities()
 
       -- Enable the following language servers
       --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
@@ -604,6 +628,10 @@ require('lazy').setup({
       --  - capabilities (table): Override fields in capabilities. Can be used to disable certain LSP features.
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
+      local ok, blink = pcall(require, 'blink.cmp')
+      local capabilities = ok and blink.get_lsp_capabilities() or vim.lsp.protocol.make_client_capabilities()
+
+      local util = require 'lspconfig.util'
       local servers = {
         clangd = { cmd = { 'clangd', '--compile-commands-dir=build' } }, -- gopls = {},
         pyright = {},
@@ -617,7 +645,15 @@ require('lazy').setup({
         ts_ls = {},
         html = {},
         cssls = {},
-
+        kotlin_language_server = {
+          cmd = { 'kotlin-language-server' },
+          root_dir = function(fname)
+            return util.root_pattern('settings.gradle', 'settings.gradle.kts', 'build.gradle', 'build.gradle.kts', 'pom.xml', '.git')(fname) or vim.fn.getcwd()
+          end,
+          init_options = {
+            storagePath = vim.fn.stdpath 'cache' .. '/kotlin-lsp', -- fixes the BEGIN_ARRAY crash
+          },
+        },
         lua_ls = {
           -- cmd = { ... },
           -- filetypes = { ... },
@@ -650,6 +686,8 @@ require('lazy').setup({
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
         'stylua', -- Used to format Lua code
+        'kotlin-language-server', -- add mason package explicitly
+        'ktlint',
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
@@ -691,7 +729,7 @@ require('lazy').setup({
         if disable_filetypes[vim.bo[bufnr].filetype] then
           return nil
         end
-        return { timeout_ms = 500, lsp_format = 'fallback' }
+        return { timeout_ms = 1000, lsp_format = 'fallback' }
       end,
       -- add this block ↓
       formatters = {
@@ -706,17 +744,21 @@ require('lazy').setup({
             PRETTIERD_DEFAULT_CONFIG = vim.fn.expand '~/.config/prettier/.prettierrc.json',
           },
         },
+        -- inside conform opts.formatters
+        ktlint = { prepend_args = { '--format' } },
       },
+
       formatters_by_ft = {
         lua = { 'stylua' },
         python = { 'black' },
-        html = { 'prettier' }, -- or 'prettierd'
-        css = { 'prettier' }, -- or 'prettierd'
+        html = { 'prettierd' }, -- or 'prettierd'
+        css = { 'prettierd' }, -- or 'prettierd'
         javascript = { 'prettierd' },
         typescript = { 'prettierd' },
         typescriptreact = { 'prettierd' },
         c = { 'clang-format' },
         cpp = { 'clang-format' },
+        kotlin = { 'ktlint' },
       },
     },
   },
@@ -739,6 +781,7 @@ require('lazy').setup({
         '%filepath',
       }
 
+      local has_eslint_d = vim.fn.executable 'eslint_d' == 1
       lint.linters_by_ft = {
         python = { 'flake8' },
         c = { 'clangtidy' },
@@ -747,9 +790,14 @@ require('lazy').setup({
         javascriptreact = { 'eslint_d' },
         html = { 'htmlhint' },
         css = { 'stylelint' },
+        kotlin = { 'ktlint' },
         scss = { 'stylelint' },
       }
-
+      -- Use eslint_d if available, fallback to eslint
+      lint.linters_by_ft.javascript = { has_eslint_d and 'eslint_d' or 'eslint' }
+      lint.linters_by_ft.javascriptreact = lint.linters_by_ft.javascript
+      lint.linters_by_ft.typescript = { has_eslint_d and 'eslint_d' or 'eslint' }
+      lint.linters_by_ft.typescriptreact = lint.linters_by_ft.typescript
       lint.linters.flake8.args = { '--max-line-length=120' }
       -- Auto-run lint on save
       vim.api.nvim_create_autocmd({ 'BufWritePost', 'BufReadPost', 'InsertLeave' }, {
@@ -1002,6 +1050,7 @@ require('lazy').setup({
         'typescript',
         'css',
         'html',
+        'kotlin',
         'lua',
         'luadoc',
         'markdown',
