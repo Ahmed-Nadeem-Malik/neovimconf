@@ -630,11 +630,11 @@ require('lazy').setup({
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
       local ok, blink = pcall(require, 'blink.cmp')
       local capabilities = ok and blink.get_lsp_capabilities() or vim.lsp.protocol.make_client_capabilities()
-
-      local util = require 'lspconfig.util'
       local servers = {
         clangd = { cmd = { 'clangd', '--compile-commands-dir=build' } }, -- gopls = {},
         pyright = {},
+
+        kotlin_lsp = {},
         -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
@@ -645,15 +645,6 @@ require('lazy').setup({
         ts_ls = {},
         html = {},
         cssls = {},
-        kotlin_language_server = {
-          cmd = { 'kotlin-language-server' },
-          root_dir = function(fname)
-            return util.root_pattern('settings.gradle', 'settings.gradle.kts', 'build.gradle', 'build.gradle.kts', 'pom.xml', '.git')(fname) or vim.fn.getcwd()
-          end,
-          init_options = {
-            storagePath = vim.fn.stdpath 'cache' .. '/kotlin-lsp', -- fixes the BEGIN_ARRAY crash
-          },
-        },
         lua_ls = {
           -- cmd = { ... },
           -- filetypes = { ... },
@@ -686,20 +677,15 @@ require('lazy').setup({
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
         'stylua', -- Used to format Lua code
-        'kotlin-language-server', -- add mason package explicitly
-        'ktlint',
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
       require('mason-lspconfig').setup {
-        ensure_installed = {}, -- explicitly set to an empty table (Kickstart populates installs via mason-tool-installer)
+        ensure_installed = {}, -- mason-tool-installer drives installation
         automatic_installation = false,
         handlers = {
           function(server_name)
             local server = servers[server_name] or {}
-            -- This handles overriding only values explicitly passed
-            -- by the server configuration above. Useful when disabling
-            -- certain features of an LSP (for example, turning off formatting for ts_ls)
             server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
             require('lspconfig')[server_name].setup(server)
           end,
@@ -756,7 +742,7 @@ require('lazy').setup({
         javascript = { 'prettierd' },
         typescript = { 'prettierd' },
         typescriptreact = { 'prettierd' },
-        c = { 'clang-format' },
+        --c = { 'clang-format' },
         cpp = { 'clang-format' },
         kotlin = { 'ktlint' },
       },
@@ -784,13 +770,12 @@ require('lazy').setup({
       local has_eslint_d = vim.fn.executable 'eslint_d' == 1
       lint.linters_by_ft = {
         python = { 'flake8' },
-        c = { 'clangtidy' },
+        --c = { 'clangtidy' },
         cpp = { 'clangtidy' },
         javascript = { 'eslint_d' }, -- faster than eslint
         javascriptreact = { 'eslint_d' },
         html = { 'htmlhint' },
         css = { 'stylelint' },
-        kotlin = { 'ktlint' },
         scss = { 'stylelint' },
       }
       -- Use eslint_d if available, fallback to eslint
@@ -1050,12 +1035,12 @@ require('lazy').setup({
         'typescript',
         'css',
         'html',
-        'kotlin',
         'lua',
         'luadoc',
         'markdown',
         'markdown_inline',
         'query',
+        'kotlin',
         'vim',
         'vimdoc',
       }, -- Autoinstall languages that are not installed
