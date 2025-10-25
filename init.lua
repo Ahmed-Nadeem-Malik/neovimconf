@@ -632,7 +632,7 @@ require('lazy').setup({
       local capabilities = ok and blink.get_lsp_capabilities() or vim.lsp.protocol.make_client_capabilities()
       local servers = {
         clangd = { cmd = { 'clangd', '--compile-commands-dir=build' } }, -- gopls = {},
-        pyright = {},
+        basedpyright = {},
 
         kotlin_lsp = {},
         -- rust_analyzer = {},
